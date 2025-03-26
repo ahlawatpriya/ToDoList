@@ -1,11 +1,250 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>Advanced To-Do List</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .container {
+            margin-top: 50px;
+        }
+
+        .task-list-group .list-group-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .task-actions button {
+            margin-left: 5px;
+        }
+
+        .completed-task {
+            text-decoration: line-through;
+            color: #6c757d;
+        }
+    </style>
 </head>
+
 <body>
-    <h1>Hello Priya!</h1>
+    <div class="container">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4><i class="fas fa-check-double"></i> Advanced To-Do List</h4>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="newTaskInput" placeholder="Add new task...">
+                        <button class="btn btn-success" type="button" id="addTaskBtn">
+                            <i class="fas fa-plus"></i> Add
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="btn-group" role="group" aria-label="Task Filters">
+                        <button type="button" class="btn btn-outline-secondary active" data-filter="all">All</button>
+                        <button type="button" class="btn btn-outline-secondary" data-filter="pending">Pending</button>
+                        <button type="button" class="btn btn-outline-secondary"
+                            data-filter="completed">Completed</button>
+                    </div>
+                </div>
+
+                <ul class="list-group task-list-group">
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editTaskModal" tabindex="-1" aria-labelledby="editTaskModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editTaskModalLabel">Edit Task</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" class="form-control" id="editTaskInput">
+                    <input type="hidden" id="editTaskIndex">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="saveEditBtn">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const newTaskInput = document.getElementById('newTaskInput');
+            const addTaskBtn = document.getElementById('addTaskBtn');
+            const taskListGroup = document.querySelector('.task-list-group');
+            const filterButtons = document.querySelectorAll('.btn-group button');
+            const editTaskModal = new bootstrap.Modal(document.getElementById('editTaskModal'));
+            const editTaskInput = document.getElementById('editTaskInput');
+            const editTaskIndexInput = document.getElementById('editTaskIndex');
+            const saveEditBtn = document.getElementById('saveEditBtn');
+
+            let tasks = loadTasks();
+            renderTasks(tasks);
+
+            addTaskBtn.addEventListener('click', addTask);
+            newTaskInput.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    addTask();
+                }
+            });
+
+            taskListGroup.addEventListener('click', handleTaskAction);
+
+            filterButtons.forEach(button => {
+                button.addEventListener('click', filterTasks);
+            });
+
+            saveEditBtn.addEventListener('click', saveEditedTask);
+
+            function loadTasks() {
+                const storedTasks = localStorage.getItem('tasks');
+                return storedTasks ? JSON.parse(storedTasks) : [];
+            }
+
+            function saveTasks() {
+                localStorage.setItem('tasks', JSON.stringify(tasks));
+            }
+
+            function renderTasks(currentTasks) {
+                taskListGroup.innerHTML = '';
+                currentTasks.forEach((task, index) => {
+                    const listItem = document.createElement('li');
+                    listItem.classList.add('list-group-item');
+                    const taskText = document.createElement('span');
+                    taskText.innerText = task.text;
+                    if (task.completed) {
+                        taskText.classList.add('completed-task');
+                    }
+
+                    const taskActions = document.createElement('div');
+                    taskActions.classList.add('task-actions');
+
+                    const completeButton = document.createElement('button');
+                    completeButton.classList.add('btn', 'btn-sm', task.completed ? 'btn-secondary' : 'btn-success');
+                    completeButton.innerHTML = task.completed ? '<i class="fas fa-check-double"></i>' : '<i class="fas fa-check"></i>';
+                    completeButton.setAttribute('data-action', 'complete');
+                    completeButton.setAttribute('data-index', index);
+
+                    const editButton = document.createElement('button');
+                    editButton.classList.add('btn', 'btn-sm', 'btn-primary');
+                    editButton.innerHTML = '<i class="fas fa-edit"></i>';
+                    editButton.setAttribute('data-action', 'edit');
+                    editButton.setAttribute('data-index', index);
+
+                    const deleteButton = document.createElement('button');
+                    deleteButton.classList.add('btn', 'btn-sm', 'btn-danger');
+                    deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
+                    deleteButton.setAttribute('data-action', 'delete');
+                    deleteButton.setAttribute('data-index', index);
+
+                    taskActions.appendChild(completeButton);
+                    taskActions.appendChild(editButton);
+                    taskActions.appendChild(deleteButton);
+
+                    listItem.appendChild(taskText);
+                    listItem.appendChild(taskActions);
+
+                    taskListGroup.appendChild(listItem);
+                });
+            }
+
+            function addTask() {
+                const taskText = newTaskInput.value.trim();
+                if (taskText) {
+                    tasks.push({ text: taskText, completed: false });
+                    saveTasks();
+                    renderTasks(tasks);
+                    newTaskInput.value = '';
+                }
+            }
+
+            function handleTaskAction(event) {
+                const target = event.target;
+                const action = target.getAttribute('data-action');
+                const index = parseInt(target.getAttribute('data-index'));
+
+                if (!isNaN(index)) {
+                    switch (action) {
+                        case 'complete':
+                            toggleComplete(index);
+                            break;
+                        case 'edit':
+                            openEditModal(index);
+                            break;
+                        case 'delete':
+                            deleteTask(index);
+                            break;
+                    }
+                }
+            }
+
+            function toggleComplete(index) {
+                tasks[index].completed = !tasks[index].completed;
+                saveTasks();
+                renderTasks(tasks);
+            }
+
+            function openEditModal(index) {
+                editTaskInput.value = tasks[index].text;
+                editTaskIndexInput.value = index;
+                editTaskModal.show();
+            }
+
+            function saveEditedTask() {
+                const index = parseInt(editTaskIndexInput.value);
+                const newText = editTaskInput.value.trim();
+                if (!isNaN(index) && newText) {
+                    tasks[index].text = newText;
+                    saveTasks();
+                    renderTasks(tasks);
+                    editTaskModal.hide();
+                }
+            }
+
+            function deleteTask(index) {
+                tasks.splice(index, 1);
+                saveTasks();
+                renderTasks(tasks);
+            }
+
+            function filterTasks(event) {
+                const filter = event.target.getAttribute('data-filter');
+                filterButtons.forEach(btn => btn.classList.remove('active'));
+                event.target.classList.add('active');
+
+                let filteredTasks = [];
+                switch (filter) {
+                    case 'pending':
+                        filteredTasks = tasks.filter(task => !task.completed);
+                        break;
+                    case 'completed':
+                        filteredTasks = tasks.filter(task => task.completed);
+                        break;
+                    case 'all':
+                    default:
+                        filteredTasks = tasks;
+                }
+                renderTasks(filteredTasks);
+            }
+        });
+    </script>
 </body>
+
 </html>
